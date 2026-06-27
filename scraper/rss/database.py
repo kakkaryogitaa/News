@@ -1,11 +1,16 @@
-import sqlite3
+import os
+import psycopg2
 from models import ArticleData
 
-DATABASE_NAME = "news.db"
+# Use same DB as Prisma backend
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 
 def create_connection():
-    return sqlite3.connect(DATABASE_NAME)
+    if not DATABASE_URL:
+        raise Exception("DATABASE_URL not set in environment variables")
+
+    return psycopg2.connect(DATABASE_URL)
 
 
 def create_table():
@@ -14,7 +19,7 @@ def create_table():
 
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS articles (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         title TEXT,
         summary TEXT,
         url TEXT UNIQUE,
@@ -35,15 +40,9 @@ def insert_article(article):
     try:
         cursor.execute("""
         INSERT INTO articles
-        (
-            title,
-            summary,
-            url,
-            source,
-            published,
-            content
-        )
-        VALUES (?, ?, ?, ?, ?, ?)
+        (title, summary, url, source, published, content)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        ON CONFLICT (url) DO NOTHING
         """,
         (
             article.title,
@@ -57,10 +56,11 @@ def insert_article(article):
         conn.commit()
         print(f"✅ Saved: {article.title}")
 
-    except sqlite3.IntegrityError:
-        print(f"⚠️ Duplicate: {article.title}")
+    except Exception as e:
+        print(f"❌ Insert error: {e}")
 
-    conn.close()
+    finally:
+        conn.close()
 
 
 def get_all_articles():
@@ -68,23 +68,16 @@ def get_all_articles():
     cursor = conn.cursor()
 
     cursor.execute("""
-    SELECT
-        title,
-        summary,
-        url,
-        source,
-        published,
-        content
+    SELECT title, summary, url, source, published, content
     FROM articles
+    ORDER BY id DESC
     """)
 
     rows = cursor.fetchall()
     conn.close()
 
-    articles = []
-
-    for row in rows:
-        article = ArticleData(
+    return [
+        ArticleData(
             title=row[0],
             summary=row[1],
             url=row[2],
@@ -92,7 +85,5 @@ def get_all_articles():
             published=row[4],
             content=row[5]
         )
-
-        articles.append(article)
-
-    return articles
+        for row in rows
+    ]
