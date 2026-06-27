@@ -1,4 +1,3 @@
-import { initialSources, initialClusters, topActiveTopics } from './data/mockData.js';
 import { renderSidebar } from './components/Sidebar.js';
 import { renderHeader } from './components/Header.js';
 import { renderOverviewCard } from './components/OverviewCard.js';
@@ -18,18 +17,19 @@ import {
   apiGetSources,
   apiGetAnalytics,
   apiTriggerIngest,
-  apiGetIngestStatus
+  apiGetIngestStatus,
+  queryClient
 } from './services/api.js';
 
 // Application State
 let state = {
   activeTab: 'dashboard',
-  sources: JSON.parse(JSON.stringify(initialSources)),
-  clusters: JSON.parse(JSON.stringify(initialClusters)),
+  sources: [],
+  clusters: [],
   timeline: [],
   articles: [],
   analytics: null,
-  topTopics: JSON.parse(JSON.stringify(topActiveTopics)),
+  topTopics: [],
   searchQuery: '',
   activeCluster: null,
   lastUpdated: 'Just now',
@@ -238,7 +238,7 @@ async function handleRefreshFlow() {
       }
     }
 
-    // Automatically refetch backend data
+    queryClient.clear();
     await loadBackendData();
 
     const now = new Date();

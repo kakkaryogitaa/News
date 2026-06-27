@@ -1,213 +1,211 @@
-const db = require("../config/database");
+const prisma = require("../config/prisma");
 
 const jobs = new Map();
 
-function getAllClusters() {
-  return new Promise((resolve, reject) => {
-    const query = `
-      SELECT c.*, 
-             COUNT(a.id) as articleCount,
-             GROUP_CONCAT(DISTINCT a.source) as sourceList
-      FROM clusters c
-      LEFT JOIN articles a ON a.cluster_id = c.id
-      GROUP BY c.id
-      ORDER BY c.id ASC
-    `;
+async function getAllClusters() {
+  if (!prisma) return [];
 
-    db.all(query, [], (err, rows) => {
-      if (err) return reject(err);
-      const clusters = rows.map((r) => ({
-        id: r.id.toString(),
-        name: r.label,
-        label: r.label,
-        summary: r.summary,
-        sizeIndicator: r.size_indicator,
-        timeRange: `${r.start_time.split(" ")[1] || ""} - ${r.end_time.split(" ")[1] || ""}`,
-        startTime: r.start_time,
-        endTime: r.end_time,
-        createdTimestamp: r.created_at,
-        articleCount: r.articleCount || 0,
-        sources: r.sourceList ? r.sourceList.split(",") : []
-      }));
-      resolve(clusters);
+  try {
+    const clusters = await prisma.article.findMany({
+      select: {
+        id: true,
+        title: true,
+        source: true
+      }
     });
-  });
+
+    return clusters.map((article) => ({
+      id: article.id.toString(),
+      name: article.title,
+      label: article.title,
+      summary: article.source,
+      sizeIndicator: "Live",
+      timeRange: "Live - Now",
+      startTime: new Date().toISOString(),
+      endTime: new Date().toISOString(),
+      createdTimestamp: new Date().toISOString(),
+      articleCount: 1,
+      sources: [article.source]
+    }));
+  } catch (error) {
+    console.warn("Unable to load clusters from PostgreSQL:", error.message);
+    return [];
+  }
 }
 
-function getClusterById(id) {
-  return new Promise((resolve, reject) => {
-    db.get("SELECT * FROM clusters WHERE id = ?", [id], (err, clusterRow) => {
-      if (err) return reject(err);
-      if (!clusterRow) return resolve(null);
+async function getClusterById(id) {
+  if (!prisma) return null;
 
-      db.all("SELECT * FROM articles WHERE cluster_id = ? ORDER BY timestamp_raw DESC", [id], (err2, articleRows) => {
-        if (err2) return reject(err2);
-
-        const sources = Array.from(new Set(articleRows.map(a => a.source)));
-        const articles = articleRows.map(a => {
-          const img = a.image_url || "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=600&q=80";
-          return {
-            id: a.id.toString(),
-            title: a.title,
-            headline: a.title,
-            summary: a.summary,
-            snippet: a.summary,
-            source: a.source,
-            published: a.published,
-            publishedAt: a.published,
-            publishedTime: a.published,
-            timestampRaw: a.timestamp_raw || Date.now(),
-            url: a.url,
-            imageUrl: img,
-            image_url: img
-          };
-        });
-
-        resolve({
-          id: clusterRow.id.toString(),
-          name: clusterRow.label,
-          label: clusterRow.label,
-          summary: clusterRow.summary,
-          sizeIndicator: clusterRow.size_indicator,
-          timeRange: `${clusterRow.start_time.split(" ")[1] || ""} - ${clusterRow.end_time.split(" ")[1] || ""}`,
-          startTime: clusterRow.start_time,
-          endTime: clusterRow.end_time,
-          createdTimestamp: clusterRow.created_at,
-          articleCount: articles.length,
-          sources,
-          articles
-        });
-      });
+  try {
+    const article = await prisma.article.findUnique({
+      where: { id: Number(id) },
+      select: {
+        id: true,
+        title: true,
+        summary: true,
+        url: true,
+        source: true,
+        published: true,
+        content: true
+      }
     });
-  });
+
+    if (!article) return null;
+
+    return {
+      id: article.id.toString(),
+      name: article.title,
+      label: article.title,
+      summary: article.summary || article.content || "",
+      sizeIndicator: "Live",
+      timeRange: "Live - Now",
+      startTime: article.published ? article.published.toISOString() : new Date().toISOString(),
+      endTime: article.published ? article.published.toISOString() : new Date().toISOString(),
+      createdTimestamp: article.published ? article.published.toISOString() : new Date().toISOString(),
+      articleCount: 1,
+      sources: [article.source],
+      articles: [
+        {
+          id: article.id.toString(),
+          title: article.title,
+          headline: article.title,
+          summary: article.summary || article.content || "",
+          snippet: article.summary || article.content || "",
+          source: article.source,
+          published: article.published ? article.published.toISOString() : null,
+          publishedAt: article.published ? article.published.toISOString() : null,
+          publishedTime: article.published ? article.published.toISOString() : null,
+          timestampRaw: article.published ? article.published.toISOString() : new Date().toISOString(),
+          url: article.url,
+          imageUrl: "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=600&q=80",
+          image_url: "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=600&q=80"
+        }
+      ]
+    };
+  } catch (error) {
+    console.warn("Unable to load cluster from PostgreSQL:", error.message);
+    return null;
+  }
 }
 
-function getTimelineData() {
-  return new Promise(async (resolve, reject) => {
-    try {
-      const clusters = await getAllClusters();
-      const timeline = clusters.map((c) => ({
-        id: c.id,
-        label: c.label,
-        start: c.startTime,
-        end: c.endTime,
-        size: c.sizeIndicator,
-        articleCount: c.articleCount,
-        sources: c.sources
-      }));
-      resolve(timeline);
-    } catch (err) {
-      reject(err);
-    }
-  });
+async function getTimelineData() {
+  const clusters = await getAllClusters();
+  return clusters.map((c) => ({
+    id: c.id,
+    label: c.label,
+    start: c.startTime,
+    end: c.endTime,
+    size: c.sizeIndicator,
+    articleCount: c.articleCount,
+    sources: c.sources
+  }));
 }
 
-function getAllArticles() {
-  return new Promise((resolve, reject) => {
-    const query = `
-      SELECT a.*, c.label as clusterLabel
-      FROM articles a
-      LEFT JOIN clusters c ON a.cluster_id = c.id
-      ORDER BY a.timestamp_raw DESC
-    `;
-    db.all(query, [], (err, rows) => {
-      if (err) return reject(err);
-      const articles = rows.map((r) => {
-        const img = r.image_url || "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=600&q=80";
-        return {
-          id: r.id.toString(),
-          headline: r.title,
-          title: r.title,
-          summary: r.summary,
-          snippet: r.summary,
-          source: r.source,
-          published: r.published,
-          publishedAt: r.published,
-          url: r.url,
-          imageUrl: img,
-          image_url: img,
-          clusterId: r.cluster_id ? r.cluster_id.toString() : null,
-          clusterName: r.clusterLabel || "Uncategorized",
-          status: "Verified"
-        };
-      });
-      resolve(articles);
+async function getAllArticles() {
+  if (!prisma) return [];
+
+  try {
+    const articles = await prisma.article.findMany({
+      orderBy: { published: "desc" },
+      select: {
+        id: true,
+        title: true,
+        summary: true,
+        url: true,
+        source: true,
+        published: true,
+        content: true
+      }
     });
-  });
+
+    return articles.map((article) => ({
+      id: article.id.toString(),
+      headline: article.title,
+      title: article.title,
+      summary: article.summary || article.content || "",
+      snippet: article.summary || article.content || "",
+      source: article.source,
+      published: article.published ? article.published.toISOString() : null,
+      publishedAt: article.published ? article.published.toISOString() : null,
+      url: article.url,
+      imageUrl: "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=600&q=80",
+      image_url: "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=600&q=80",
+      clusterId: null,
+      clusterName: "Live data",
+      status: "Verified"
+    }));
+  } catch (error) {
+    console.warn("Unable to load articles from PostgreSQL:", error.message);
+    return [];
+  }
 }
 
-function getSourcesData() {
-  return new Promise((resolve, reject) => {
-    const query = `
-      SELECT 
-        source,
-        COUNT(id) as totalArticles,
-        COUNT(DISTINCT cluster_id) as totalClusters,
-        MAX(published) as lastUpdated
-      FROM articles
-      GROUP BY source
-    `;
-    db.all(query, [], (err, rows) => {
-      if (err) return reject(err);
-      const sources = rows.map((r) => ({
-        id: r.source.toLowerCase().replace(/[^a-z0-9]/g, "-"),
-        name: r.source,
-        checked: true,
-        count: r.totalArticles,
-        totalArticles: r.totalArticles,
-        totalClusters: r.totalClusters,
-        lastUpdated: r.lastUpdated || "Recently",
-        status: "Active"
-      }));
-      resolve(sources);
+async function getSourcesData() {
+  if (!prisma) return [];
+
+  try {
+    const articles = await prisma.article.findMany({
+      select: { source: true }
     });
-  });
+
+    const sourceMap = new Map();
+    articles.forEach((article) => {
+      const current = sourceMap.get(article.source) || 0;
+      sourceMap.set(article.source, current + 1);
+    });
+
+    return Array.from(sourceMap.entries()).map(([name, count]) => ({
+      id: name.toLowerCase().replace(/[^a-z0-9]/g, "-"),
+      name,
+      checked: true,
+      count,
+      totalArticles: count,
+      totalClusters: 1,
+      lastUpdated: new Date().toISOString(),
+      status: "Active"
+    }));
+  } catch (error) {
+    console.warn("Unable to load sources from PostgreSQL:", error.message);
+    return [];
+  }
 }
 
-function getAnalyticsData() {
-  return new Promise(async (resolve, reject) => {
-    try {
-      const articles = await getAllArticles();
-      const clusters = await getAllClusters();
+async function getAnalyticsData() {
+  const articles = await getAllArticles();
+  const clusters = await getAllClusters();
 
-      // Articles per source
-      const sourceMap = {};
-      articles.forEach((a) => {
-        sourceMap[a.source] = (sourceMap[a.source] || 0) + 1;
-      });
-      const articlesPerSource = Object.keys(sourceMap).map((src) => ({
-        source: src,
-        count: sourceMap[src]
-      }));
-
-      // Largest clusters
-      const largestClusters = clusters
-        .map((c) => ({ id: c.id, label: c.label, articleCount: c.articleCount }))
-        .sort((a, b) => b.articleCount - a.articleCount);
-
-      // Top active topics
-      const totalArts = articles.length || 1;
-      const topTopics = clusters
-        .map((c) => ({
-          id: c.id,
-          name: c.label,
-          count: c.articleCount,
-          percentage: Math.round((c.articleCount / totalArts) * 100)
-        }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 5);
-
-      resolve({
-        articlesPerSource,
-        largestClusters,
-        topTopics,
-        totalArticles: articles.length,
-        totalClusters: clusters.length
-      });
-    } catch (err) {
-      reject(err);
-    }
+  const sourceMap = {};
+  articles.forEach((article) => {
+    sourceMap[article.source] = (sourceMap[article.source] || 0) + 1;
   });
+
+  const articlesPerSource = Object.keys(sourceMap).map((source) => ({
+    source,
+    count: sourceMap[source]
+  }));
+
+  const largestClusters = clusters
+    .map((cluster) => ({ id: cluster.id, label: cluster.label, articleCount: cluster.articleCount }))
+    .sort((a, b) => b.articleCount - a.articleCount);
+
+  const totalArts = articles.length || 1;
+  const topTopics = clusters
+    .map((cluster) => ({
+      id: cluster.id,
+      name: cluster.label,
+      count: cluster.articleCount,
+      percentage: Math.round((cluster.articleCount / totalArts) * 100)
+    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+
+  return {
+    articlesPerSource,
+    largestClusters,
+    topTopics,
+    totalArticles: articles.length,
+    totalClusters: clusters.length
+  };
 }
 
 function triggerIngestion() {
@@ -216,24 +214,6 @@ function triggerIngestion() {
 
   setTimeout(() => {
     jobs.set(jobId, { status: "completed", endTime: Date.now() });
-
-    const stmt = db.prepare(`
-      INSERT INTO articles (title, summary, url, source, published, timestamp_raw, content, image_url, cluster_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    const newId = Date.now();
-    stmt.run(
-      `Live Breakdown: Tech & Market Sentiment Shifts post-Ingestion #${Math.floor(Math.random() * 100)}`,
-      "Real-time news monitoring algorithms detected renewed market activity following automated feed ingestion.",
-      `https://www.reuters.com/technology/`,
-      "Reuters",
-      "Just now",
-      newId,
-      "Live ingestion contents...",
-      "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80",
-      1
-    );
-    stmt.finalize();
   }, 2500);
 
   return { jobId };
