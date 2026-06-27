@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NewsPulse - Topic-Clustered News Timeline Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./src/styles/variables.css">
+  <link rel="stylesheet" href="./src/styles/layout.css">
+  <link rel="stylesheet" href="./src/styles/components.css">
+  <link rel="stylesheet" href="./src/styles/animations.css">
+</head>
+<body>
+  <div id="app" class="dashboard-container">
+    <!-- Left Sidebar -->
+    <aside id="sidebar" class="sidebar"></aside>
+
+    <!-- Main Content Area -->
+    <div class="main-wrapper">
+      <!-- Header -->
+      <header id="header" class="header"></header>
+
+      <!-- Dashboard Grid Body -->
+      <main class="content-body">
+        <div class="center-column">
+          <!-- Hero Overview Card -->
+          <section id="overview-card" class="overview-section"></section>
+          
+          <!-- Topic Clusters Section -->
+          <section class="clusters-section">
+            <div class="section-header">
+              <div>
+                <h2 class="section-title">Topic Clusters</h2>
+                <p class="section-subtitle">Real-time grouped news intelligence</p>
+              </div>
+              <div class="cluster-stats-mini" id="cluster-count-badge">Showing 6 clusters</div>
+            </div>
+            <div id="cluster-grid" class="cluster-grid"></div>
+          </section>
+        </div>
+
+        <!-- Right Sidebar -->
+        <aside id="right-sidebar" class="right-sidebar"></aside>
+      </main>
+    </div>
+
+    <!-- Right Side Detail Drawer -->
+    <div id="drawer-overlay" class="drawer-overlay"></div>
+    <aside id="detail-drawer" class="detail-drawer" aria-hidden="true"></aside>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast-container"></div>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
