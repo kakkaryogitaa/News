@@ -1,8 +1,8 @@
-const prisma = require("../prisma/client");
+const prisma = require("../config/prisma");
 
 function getAllArticles() {
-  return prisma.article.findMany({
-    orderBy: { published: "desc" }
+  return prisma.articles.findMany({
+    orderBy: { id: "desc" }
   });
 }
 
