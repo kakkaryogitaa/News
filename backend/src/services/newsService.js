@@ -7,35 +7,41 @@ const jobs = new Map();
  */
 async function getAllArticles() {
   try {
-    const articles = await prisma.article.findMany({
-      orderBy: { published: "desc" },
-      select: {
-        id: true,
-        title: true,
-        summary: true,
-        url: true,
-        source: true,
-        published: true,
-        content: true
+    const articles = await prisma.articles.findMany({
+      orderBy: { id: "desc" },
+      include: {
+        clusters: true
       }
     });
 
-    return articles.map((article) => ({
-      id: article.id.toString(),
-      headline: article.title,
-      title: article.title,
-      summary: article.summary || article.content || "",
-      snippet: article.summary || article.content || "",
-      source: article.source,
-      published: article.published ? article.published.toISOString() : null,
-      publishedAt: article.published ? article.published.toISOString() : null,
-      url: article.url,
-      imageUrl: "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=600&q=80",
-      image_url: "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=600&q=80",
-      clusterId: null,
-      clusterName: "Live data",
-      status: "Verified"
-    }));
+    return articles.map((article) => {
+      let publishedIso = null;
+      if (article.published) {
+        const parsedDate = new Date(article.published);
+        if (!isNaN(parsedDate.getTime())) {
+          publishedIso = parsedDate.toISOString();
+        } else {
+          publishedIso = article.published;
+        }
+      }
+
+      return {
+        id: article.id.toString(),
+        headline: article.title,
+        title: article.title,
+        summary: article.summary || article.content || "",
+        snippet: article.summary || article.content || "",
+        source: article.source,
+        published: publishedIso,
+        publishedAt: publishedIso,
+        url: article.url,
+        imageUrl: article.image_url || "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=600&q=80",
+        image_url: article.image_url || "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=600&q=80",
+        clusterId: article.cluster_id ? article.cluster_id.toString() : null,
+        clusterName: article.clusters ? article.clusters.label : "Unclustered",
+        status: "Verified"
+      };
+    });
   } catch (error) {
     console.error("🔥 ERROR in getAllArticles:", error);
     throw error;
@@ -43,36 +49,32 @@ async function getAllArticles() {
 }
 
 /**
- * GET CLUSTERS (TEMP: derived from articles)
+ * GET CLUSTERS (REAL DB DATA)
  */
 async function getAllClusters() {
   try {
-    const articles = await prisma.article.findMany({
-      select: {
-        id: true,
-        title: true,
-        source: true,
-        published: true
+    const clusters = await prisma.clusters.findMany({
+      include: {
+        articles: true
       }
     });
 
-    return articles.map((article) => ({
-      id: article.id.toString(),
-      name: article.title,
-      label: article.title,
-      summary: article.source,
-      sizeIndicator: "Live",
-      timeRange: "Live - Now",
-      startTime: article.published
-        ? article.published.toISOString()
-        : new Date().toISOString(),
-      endTime: article.published
-        ? article.published.toISOString()
-        : new Date().toISOString(),
-      createdTimestamp: new Date().toISOString(),
-      articleCount: 1,
-      sources: [article.source]
-    }));
+    return clusters.map((cluster) => {
+      const sources = Array.from(new Set(cluster.articles.map(a => a.source)));
+      return {
+        id: cluster.id.toString(),
+        name: cluster.label,
+        label: cluster.label,
+        summary: cluster.summary || "",
+        sizeIndicator: cluster.size_indicator || "medium",
+        timeRange: `${cluster.start_time || "N/A"} - ${cluster.end_time || "N/A"}`,
+        startTime: cluster.start_time || new Date().toISOString(),
+        endTime: cluster.end_time || new Date().toISOString(),
+        createdTimestamp: cluster.created_at || new Date().toISOString(),
+        articleCount: cluster.articles.length,
+        sources: sources
+      };
+    });
   } catch (error) {
     console.error("🔥 ERROR in getAllClusters:", error);
     throw error;
@@ -80,56 +82,59 @@ async function getAllClusters() {
 }
 
 /**
- * GET SINGLE ARTICLE (CLUSTER VIEW)
+ * GET SINGLE CLUSTER BY ID (REAL DB DATA)
  */
 async function getClusterById(id) {
   try {
-    const article = await prisma.article.findUnique({
+    const cluster = await prisma.clusters.findUnique({
       where: { id: Number(id) },
-      select: {
-        id: true,
-        title: true,
-        summary: true,
-        url: true,
-        source: true,
-        published: true,
-        content: true
+      include: {
+        articles: true
       }
     });
 
-    if (!article) return null;
+    if (!cluster) return null;
+
+    const sources = Array.from(new Set(cluster.articles.map(a => a.source)));
 
     return {
-      id: article.id.toString(),
-      name: article.title,
-      label: article.title,
-      summary: article.summary || article.content || "",
-      sizeIndicator: "Live",
-      timeRange: "Live - Now",
-      startTime: article.published?.toISOString() || new Date().toISOString(),
-      endTime: article.published?.toISOString() || new Date().toISOString(),
-      createdTimestamp: article.published?.toISOString() || new Date().toISOString(),
-      articleCount: 1,
-      sources: [article.source],
-      articles: [
-        {
-          id: article.id.toString(),
-          title: article.title,
-          headline: article.title,
-          summary: article.summary || article.content || "",
-          snippet: article.summary || article.content || "",
-          source: article.source,
-          published: article.published?.toISOString() || null,
-          publishedAt: article.published?.toISOString() || null,
-          publishedTime: article.published?.toISOString() || null,
-          timestampRaw: article.published?.toISOString() || new Date().toISOString(),
-          url: article.url,
-          imageUrl:
-            "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=600&q=80",
-          image_url:
-            "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=600&q=80"
+      id: cluster.id.toString(),
+      name: cluster.label,
+      label: cluster.label,
+      summary: cluster.summary || "",
+      sizeIndicator: cluster.size_indicator || "medium",
+      timeRange: `${cluster.start_time || "N/A"} - ${cluster.end_time || "N/A"}`,
+      startTime: cluster.start_time || new Date().toISOString(),
+      endTime: cluster.end_time || new Date().toISOString(),
+      createdTimestamp: cluster.created_at || new Date().toISOString(),
+      articleCount: cluster.articles.length,
+      sources: sources,
+      articles: cluster.articles.map(a => {
+        let publishedIso = null;
+        if (a.published) {
+          const parsedDate = new Date(a.published);
+          if (!isNaN(parsedDate.getTime())) {
+            publishedIso = parsedDate.toISOString();
+          } else {
+            publishedIso = a.published;
+          }
         }
-      ]
+        return {
+          id: a.id.toString(),
+          title: a.title,
+          headline: a.title,
+          summary: a.summary || a.content || "",
+          snippet: a.summary || a.content || "",
+          source: a.source,
+          published: publishedIso,
+          publishedAt: publishedIso,
+          publishedTime: publishedIso,
+          timestampRaw: a.timestamp_raw ? a.timestamp_raw.toString() : null,
+          url: a.url,
+          imageUrl: a.image_url || "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=600&q=80",
+          image_url: a.image_url || "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=600&q=80"
+        };
+      })
     };
   } catch (error) {
     console.error("🔥 ERROR in getClusterById:", error);
@@ -142,7 +147,7 @@ async function getClusterById(id) {
  */
 async function getSourcesData() {
   try {
-    const articles = await prisma.article.findMany({
+    const articles = await prisma.articles.findMany({
       select: { source: true }
     });
 
@@ -217,6 +222,38 @@ async function getAnalyticsData() {
 }
 
 /**
+ * TIMELINE DATA (REAL DB DATA)
+ */
+async function getTimelineData() {
+  try {
+    const clusters = await prisma.clusters.findMany({
+      include: {
+        articles: {
+          select: { id: true }
+        }
+      }
+    });
+
+    return clusters.map((cluster) => {
+      const count = cluster.articles.length;
+      const intensity = Math.min(1.0, 0.2 + (count * 0.1));
+
+      return {
+        clusterId: cluster.id.toString(),
+        label: cluster.label,
+        start: cluster.start_time || new Date().toISOString(),
+        end: cluster.end_time || new Date().toISOString(),
+        articleCount: count,
+        intensity: parseFloat(intensity.toFixed(2))
+      };
+    });
+  } catch (error) {
+    console.error("🔥 ERROR in getTimelineData:", error);
+    throw error;
+  }
+}
+
+/**
  * INGESTION JOB (MOCK)
  */
 function triggerIngestion() {
@@ -256,6 +293,7 @@ module.exports = {
   getClusterById,
   getSourcesData,
   getAnalyticsData,
+  getTimelineData,
   triggerIngestion,
   getJobStatus
 };
