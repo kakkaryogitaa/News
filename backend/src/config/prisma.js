@@ -5,3 +5,5 @@ const prisma = new PrismaClient({
 });
 
 module.exports = prisma;
+
+console.log("🔥 DATABASE_URL USED:", process.env.DATABASE_URL);
