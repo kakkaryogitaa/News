@@ -1,21 +1,9 @@
-const db = require("../config/database");
+const prisma = require("../prisma/client");
 
 function getAllArticles() {
-  return new Promise((resolve, reject) => {
-    db.all(
-      "SELECT * FROM articles ORDER BY published DESC",
-      [],
-      (err, rows) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(rows);
-        }
-      }
-    );
+  return prisma.article.findMany({
+    orderBy: { published: "desc" }
   });
 }
 
-module.exports = {
-  getAllArticles,
-};
+module.exports = { getAllArticles };
