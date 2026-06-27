@@ -5,6 +5,14 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js"
+    "build": "npx pisma generate"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.16.2",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "prisma": "^6.16.2"
   },
   "keywords": [],
   "author": "",
