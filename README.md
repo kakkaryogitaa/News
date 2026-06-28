@@ -140,16 +140,7 @@ Returns detailed cluster information:
 ### GET `/timeline`
 Returns timeline-ready cluster data:
 
-```json
-[
-  {
-    "clusterId": "1",
-    "label": "election senate bill",
-    "start": "2026-06-25T10:00:00Z",
-    "end": "2026-06-26T14:00:00Z",
-    "articleCount": 6,
-    "intensity": 0.75
-  }
+
 
  POST /ingest/trigger
 
@@ -187,11 +178,14 @@ headline
 source
 time
 external link
+
  Source Filter
+
 Toggle news sources:
 BBC
 NPR
 Al Jazeera
+
  Refresh System
 
 Button triggers:
