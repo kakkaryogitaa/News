@@ -2,6 +2,12 @@ const prisma = require("../config/prisma");
 
 const jobs = new Map();
 
+// DEBUG
+console.log("Prisma object keys:", Object.keys(prisma));
+console.log("prisma.articles:", prisma.articles);
+console.log("prisma.clusters:", prisma.clusters);
+
+
 /**
  * GET ALL ARTICLES (REAL DB DATA)
  */
