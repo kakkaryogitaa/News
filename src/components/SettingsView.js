@@ -1,3 +1,5 @@
+import { API_URL } from '../services/api.js';
+
 export function renderSettingsView(container) {
   container.innerHTML = `
     <div class="animate-fade-in" style="margin-bottom: 2rem;">
@@ -10,7 +12,7 @@ export function renderSettingsView(container) {
         <div style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 1.25rem; border-bottom: 1px solid var(--border-color-subtle);">
           <div>
             <div style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">REST API Connection Status</div>
-            <div style="font-size: 0.8rem; color: var(--text-muted);">Live connection link to http://localhost:5001 Express backend</div>
+            <div style="font-size: 0.8rem; color: var(--text-muted);">Live connection to ${API_URL}</div>
           </div>
           <span style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; font-weight: 600; color: #10b981; background: rgba(16,185,129,0.1); padding: 0.35rem 0.75rem; border-radius: 20px;">
             <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span>

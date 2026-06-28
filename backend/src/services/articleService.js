@@ -1,7 +1,7 @@
 const prisma = require("../config/prisma");
 
 function getAllArticles() {
-  return prisma.articles.findMany({
+  return prisma.article.findMany({
     orderBy: { id: "desc" }
   });
 }

@@ -2,21 +2,15 @@ const prisma = require("../config/prisma");
 
 const jobs = new Map();
 
-// DEBUG
-console.log("Prisma object keys:", Object.keys(prisma));
-console.log("prisma.articles:", prisma.articles);
-console.log("prisma.clusters:", prisma.clusters);
-
-
 /**
  * GET ALL ARTICLES (REAL DB DATA)
  */
 async function getAllArticles() {
   try {
-    const articles = await prisma.articles.findMany({
+    const articles = await prisma.article.findMany({
       orderBy: { id: "desc" },
       include: {
-        clusters: true
+        cluster: true
       }
     });
 
@@ -44,7 +38,7 @@ async function getAllArticles() {
         imageUrl: article.image_url || "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=600&q=80",
         image_url: article.image_url || "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=600&q=80",
         clusterId: article.cluster_id ? article.cluster_id.toString() : null,
-        clusterName: article.clusters ? article.clusters.label : "Unclustered",
+        clusterName: article.cluster ? article.cluster.label : "Unclustered",
         status: "Verified"
       };
     });
@@ -59,7 +53,7 @@ async function getAllArticles() {
  */
 async function getAllClusters() {
   try {
-    const clusters = await prisma.clusters.findMany({
+    const clusters = await prisma.cluster.findMany({
       include: {
         articles: true
       }
@@ -92,7 +86,7 @@ async function getAllClusters() {
  */
 async function getClusterById(id) {
   try {
-    const cluster = await prisma.clusters.findUnique({
+    const cluster = await prisma.cluster.findUnique({
       where: { id: Number(id) },
       include: {
         articles: true
@@ -153,7 +147,7 @@ async function getClusterById(id) {
  */
 async function getSourcesData() {
   try {
-    const articles = await prisma.articles.findMany({
+    const articles = await prisma.article.findMany({
       select: { source: true }
     });
 
@@ -232,7 +226,7 @@ async function getAnalyticsData() {
  */
 async function getTimelineData() {
   try {
-    const clusters = await prisma.clusters.findMany({
+    const clusters = await prisma.cluster.findMany({
       include: {
         articles: {
           select: { id: true }
