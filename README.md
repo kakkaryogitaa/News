@@ -8,9 +8,9 @@ The project focuses on real-world engineering challenges such as inconsistent da
 
 ##  Live Links
 
--  Frontend: https://your-frontend-url.com  
--  Backend API: https://your-backend-url.com  
--  Video Walkthrough: https://your-video-link.com  
+-  Frontend: https://news-bay-delta.vercel.app/
+-  Backend API: https://news-a5pv.onrender.com
+-  Video Walkthrough:  
 
 ---
 
